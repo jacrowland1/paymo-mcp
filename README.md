@@ -39,6 +39,11 @@ Configuration is split between non-sensitive settings and auth:
 ```json
 {
   "timezone": "America/Chicago",
+  "defaults": {
+    "task_id": null,
+    "hours": 8,
+    "description": "Development"
+  },
   "projects": {
     "Client Matter Name": {
       "project_id": 12345,
@@ -47,6 +52,8 @@ Configuration is split between non-sensitive settings and auth:
   }
 }
 ```
+
+`timezone` is used for start/end-time entries and for "today". `defaults` (optional) supplies the task, hours per day and description for `add_paymo_time` and the hours target for `get_paymo_time_status`.
 
 **`~/.mcp-auth/paymo/auth.json`** (sensitive, sync separately):
 ```json
@@ -220,16 +227,38 @@ entries:
     description: "Expert witness report preparation"
 ```
 
-#### `list_paymo_entries(start_date, end_date, project_id=None, billed=None)`
-List time entries with optional filters.
+#### `list_paymo_entries(start_date, end_date, project_id=None, billed=None, user_id=None, all_users=False)`
+List time entries with optional filters. **Defaults to the API key's own user**: on multi-user Paymo accounts the API returns every entry the key can see, including colleagues'.
 
 **Args:**
 - `start_date` (str): Start date (YYYY-MM-DD)
 - `end_date` (str): End date (YYYY-MM-DD)
 - `project_id` (int, optional): Filter by project
 - `billed` (bool, optional): Filter by billing status (True=billed, False=unbilled, None=all)
+- `user_id` (int, optional): List another user's entries instead
+- `all_users` (bool): Return every visible entry (previous behaviour)
 
-**Returns:** List of entries with task names, durations, descriptions, and billing status.
+**Returns:** List of entries with user ID, task names, durations, descriptions, and billing status.
+
+#### `get_paymo_current_user()`
+Return the Paymo user (id, name) that owns the API key.
+
+#### `add_paymo_time(start_date, end_date=None, task_id=None, hours_per_day=None, description=None, exclude_dates=None, exclude_start=None, exclude_end=None, only_skip_same_task=False, dry_run=True)`
+Bulk-add one entry per working day (Mon–Fri) for your own user. **Defaults to a dry run**: nothing is created until called again with `dry_run=False`. Days that already have any of your time logged are skipped, so days are never double-booked and re-running is safe (`only_skip_same_task=True` only skips days with an entry on the same task). Unset arguments fall back to `defaults` in `config.json`.
+
+**Example:**
+```python
+add_paymo_time(start_date="2026-07-06", end_date="2026-07-10", task_id=32862251,
+               exclude_dates=["2026-07-10"])          # preview
+add_paymo_time(..., dry_run=False)                    # create after review
+```
+
+#### `get_paymo_time_status(start_date=None, end_date=None, target_hours_per_day=None, task_id=None)`
+Hours logged vs. target per working day for your own user (defaults to this week, Monday to today). Returns totals, shortfall, `days_under_target` and `last_logged_date`, which is useful for finding missing timesheet days.
+
+### Public holidays
+
+`public_holidays.py` lists New Zealand public holidays plus Auckland Anniversary Day (observed dates for a Mon–Fri worker) from the official Employment New Zealand table, currently to the end of 2027. `observed_dates(start, end)` returns dates ready for `exclude_dates`. Update the table yearly from the source page rather than calculating dates (Easter and Matariki move). Run `python public_holidays.py` to print upcoming holidays.
 
 ### Invoice Management
 
@@ -544,10 +573,14 @@ Create `~/.mcp-auth/paymo/auth.json` with your API key (see Configuration sectio
 
 ### "fastmcp not installed"
 
-Install the MCP server dependency:
+The server imports `mcp.server.fastmcp` from the official `mcp` package (Python 3.10+). Install the 1.x line; `mcp` 2.x changed its layout and currently fails to import here:
 ```bash
-pip install fastmcp
+pip install "mcp>=1.2,<2"
 ```
+
+### Entries missing at the start or end of a date range
+
+Paymo matches `time_interval` in UTC, so in timezones far from UTC (e.g. New Zealand, UTC+12) entries on the first or last day of a range could be dropped. `get_entries` now queries one extra day either side and filters on each entry's own `date`.
 
 ### "Rate limit exceeded"
 
@@ -582,6 +615,7 @@ The SDK is initialized with the long-lived refresh token and mints short-lived a
 paymo-mcp/
 ├── paymo_timesheet.py  # Main script (CLI + MCP server)
 ├── dropbox_share.py    # Dropbox OAuth + share-link helper (used by generate_invoice_footer_with_share_links)
+├── public_holidays.py  # NZ + Auckland public holidays (official observed dates)
 ├── requirements.txt    # Python dependencies
 └── README.md          # This file
 ```
