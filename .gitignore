@@ -45,4 +45,7 @@ invoices/
 # OS
 .DS_Store
 Thumbs.db
-.venv/
+
+# Local-only Claude config and skills (private)
+.claude/
+skills/
