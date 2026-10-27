@@ -276,10 +276,6 @@ add_paymo_time(..., dry_run=False)                    # create after review
 #### `get_paymo_time_status(start_date=None, end_date=None, target_hours_per_day=None, task_id=None)`
 Hours logged vs. target per working day for your own user (defaults to this week, Monday to today). Returns totals, shortfall, `days_under_target` and `last_logged_date`, which is useful for finding missing timesheet days.
 
-### Public holidays
-
-`public_holidays.py` lists New Zealand public holidays plus Auckland Anniversary Day (observed dates for a Mon–Fri worker) from the official Employment New Zealand table, currently to the end of 2027. `observed_dates(start, end)` returns dates ready for `exclude_dates`. Update the table yearly from the source page rather than calculating dates (Easter and Matariki move). Run `python public_holidays.py` to print upcoming holidays.
-
 ### Invoice Management
 
 #### `list_paymo_invoices(client_id=None, status=None)`
@@ -635,7 +631,6 @@ The SDK is initialized with the long-lived refresh token and mints short-lived a
 paymo-mcp/
 ├── paymo_timesheet.py  # Main script (CLI + MCP server)
 ├── dropbox_share.py    # Dropbox OAuth + share-link helper (used by generate_invoice_footer_with_share_links)
-├── public_holidays.py  # NZ + Auckland public holidays (official observed dates)
 ├── requirements.txt    # Python dependencies
 └── README.md          # This file
 ```
